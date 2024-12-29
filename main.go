@@ -69,7 +69,6 @@ func main() {
 	rootCmd.Flags().StringVar(&query, "query", "", "Custom BigQuery SQL query (overrides table, column, and value)")
 	_ = rootCmd.MarkFlagRequired("project")
 	_ = rootCmd.MarkFlagRequired("query")
-	_ = rootCmd.MarkFlagRequired("output")
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -96,7 +95,7 @@ func BQuery(
 			fmt.Println("Query does not contain LIMIT or limit. Use --unsafe flag.")
 		}
 	}
-	var results []map[string]bigquery.Value
+
 	ctx := context.Background()
 	client, err := bigquery.NewClient(ctx, projectID)
 	if err != nil {
@@ -116,7 +115,18 @@ func BQuery(
 		return fmt.Errorf("unable to read query: %v", err)
 	}
 	var row map[string]bigquery.Value
+
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %v", err)
+	}
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
+
+	idx := 0
 	for {
+		idx++
 		itErr := it.Next(&row)
 		if errors.Is(itErr, iterator.Done) {
 			break
@@ -130,32 +140,22 @@ func BQuery(
 			camelCaseRow[toCamelCase(key)] = value
 		}
 
-		results = append(results, camelCaseRow)
-	}
-	file, err := os.Create(outputPath)
-	if err != nil {
-		return fmt.Errorf("failed to create output file: %v", err)
-	}
-	defer func(file *os.File) {
-		_ = file.Close()
-	}(file)
-
-	for idx, result := range results {
-		jsonData, jsonErr := json.Marshal(result)
+		jsonData, jsonErr := json.Marshal(camelCaseRow)
 		if jsonErr != nil {
 			return fmt.Errorf("failed to marshal row %d: %v", idx, jsonErr)
 		}
 
 		var fileErr error
 		if numberPrefix {
-			_, fileErr = file.WriteString(fmt.Sprintf("%s\n", string(jsonData)))
+			_, fileErr = file.WriteString(fmt.Sprintf("%d: %s\n", idx, string(jsonData)))
 		} else {
-			_, fileErr = file.WriteString(fmt.Sprintf("%d: %s\n", idx+1, string(jsonData)))
+			_, fileErr = file.WriteString(fmt.Sprintf("%s\n", string(jsonData)))
 		}
 		if fileErr != nil {
 			return fmt.Errorf("failed to write row %d to file: %v", idx, jsonErr)
 		}
 	}
+
 	fmt.Printf("Data written to %s\n", outputPath)
 	return nil
 }
