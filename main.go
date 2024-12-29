@@ -64,7 +64,7 @@ func main() {
 	rootCmd.Flags().StringVarP(&projectID, "project", "p", "", "GCP Project ID (required)")
 	rootCmd.Flags().StringVarP(&outputPath, "output", "o", "output.txt", "Path to the output file")
 	rootCmd.Flags().StringVarP(&unsafe, "unsafe", "u", "false", "Ignore no LIMIT N in query")
-	rootCmd.Flags().StringVarP(&unsafe, "numberPrefix", "n", "false", "Adds N: { before JSON")
+	rootCmd.Flags().StringVarP(&numberPrefix, "numberPrefix", "n", "false", "Adds N: { before JSON")
 
 	rootCmd.Flags().StringVar(&query, "query", "", "Custom BigQuery SQL query (overrides table, column, and value)")
 	_ = rootCmd.MarkFlagRequired("project")
